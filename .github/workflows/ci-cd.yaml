@@ -17,8 +17,8 @@ concurrency:
 # ─────────────────────────────────────────────────────────────────────────────
 env:
   PYTHON_VERSION: "3.12"
-  REGISTRY: docker.io
-  # IMAGE_NAME is resolved at job level using the secret — see publish job
+  # NOTE: docker.io is used directly as a literal in with: blocks below.
+  # GitHub Actions does not allow env.* inside with: fields.
 
 jobs:
 
@@ -244,9 +244,6 @@ jobs:
     permissions:
       contents: read
 
-    env:
-      IMAGE_NAME: ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USERNAME }}/k8s-upgrade-assessment
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -254,7 +251,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: docker.io
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
@@ -262,7 +259,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USERNAME }}/k8s-upgrade-assessment
+          images: docker.io/${{ secrets.REGISTRY_USERNAME }}/k8s-upgrade-assessment
           tags: |
             # semver tag  →  v1.2.3  →  1.2.3, 1.2, 1
             type=semver,pattern={{version}}
