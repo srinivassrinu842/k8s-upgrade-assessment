@@ -447,8 +447,11 @@ def _stream_mock(prompt: str, model: str) -> str:
 
 ## 2. Workload Inventory
 - **Namespaces:** `default`, `kube-system`, `monitoring`, `ingress-nginx`, `cert-manager`, `argocd`
-- **Deployments:** `coredns`, `prometheus-operator`, `grafana`, `ingress-nginx-controller`, `cert-manager`, `argocd-server`
-- **CRDs:** `certificates.cert-manager.io`, `clusterissuers.cert-manager.io`, `prometheusrules.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`, `applications.argoproj.io`, `appprojects.argoproj.io`
+- **Deployments:** `coredns`, `prometheus-operator`, `grafana`,
+  `ingress-nginx-controller`, `cert-manager`, `argocd-server`
+- **CRDs:** `certificates.cert-manager.io`, `clusterissuers.cert-manager.io`,
+  `prometheusrules.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`,
+  `applications.argoproj.io`, `appprojects.argoproj.io`
 
 ## 3. Kubernetes Release Notes Analysis (v1.27 → v1.29)
 ### v1.28 Major Changes
@@ -479,7 +482,8 @@ def _stream_mock(prompt: str, model: str) -> str:
 
 ## 7. Executive Summary
 - **Decision:** CONDITIONAL APPROVED
-- **Actions Required:** Ensure all FlowSchema objects are migrated to `flowcontrol.apiserver.k8s.io/v1` before proceeding.
+- **Actions Required:** Ensure all FlowSchema objects are migrated to
+  `flowcontrol.apiserver.k8s.io/v1` before proceeding.
 """
 
     print("  [MOCK] Simulating AI analysis stream...")
