@@ -26,7 +26,7 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="k8s-upgrade-assessment" \
       org.opencontainers.image.description="AI-powered Kubernetes upgrade risk assessment CLI" \
-      org.opencontainers.image.source="https://github.com/your-org/k8s-upgrade-assessment" \
+      org.opencontainers.image.source="https://github.com/srinivassrinu842/k8s-upgrade-assessment" \
       org.opencontainers.image.licenses="MIT"
 
 # Install kubectl

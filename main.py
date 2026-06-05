@@ -685,16 +685,20 @@ def banner(source: str, target: str, provider: str, no_cluster: bool) -> None:
 
 
 def check_container_and_adjust_url(url: str) -> str:
-    """If running inside a container, adjust localhost URLs to use host.docker.internal."""
+    """If running inside a container, adjust localhost URLs to use host.docker.internal or host.containers.internal."""
     if not url:
         return url
-    # Check if running inside docker container
-    in_docker = os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv")
-    if in_docker:
+    # Check if running inside docker or podman container
+    in_container = os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv")
+    if in_container:
+        # Podman sets container=podman environment variable and/or creates /run/.containerenv
+        is_podman = os.environ.get("container") == "podman" or os.path.exists("/run/.containerenv")
+        host_name = "host.containers.internal" if is_podman else "host.docker.internal"
+        mode_label = "Podman Mode" if is_podman else "Docker Mode"
         for local_host in ("localhost", "127.0.0.1"):
             if local_host in url:
-                new_url = url.replace(local_host, "host.docker.internal")
-                print(f"  [Docker Mode] Rewriting localhost URL: {url} -> {new_url}")
+                new_url = url.replace(local_host, host_name)
+                print(f"  [{mode_label}] Rewriting localhost URL: {url} -> {new_url}")
                 return new_url
     return url
 

@@ -555,14 +555,23 @@ class TestContainerUrlAdjustment:
         assert url == "http://localhost:1234/v1"
 
     def test_rewrites_localhost_inside_container(self):
-        with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)):
+        with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)), \
+             patch.dict("os.environ", {}, clear=True):
             url = main.check_container_and_adjust_url("http://localhost:1234/v1")
         assert url == "http://host.docker.internal:1234/v1"
 
     def test_rewrites_127_0_0_1_inside_container(self):
-        with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)):
+        with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)), \
+             patch.dict("os.environ", {}, clear=True):
             url = main.check_container_and_adjust_url("http://127.0.0.1:11434/v1")
         assert url == "http://host.docker.internal:11434/v1"
+
+    def test_rewrites_to_containers_internal_under_podman(self):
+        # /run/.containerenv is present under podman, or container=podman environment variable
+        with patch("os.path.exists", side_effect=lambda p: p in ("/run/.containerenv",)), \
+             patch.dict("os.environ", {"container": "podman"}, clear=True):
+            url = main.check_container_and_adjust_url("http://localhost:1234/v1")
+        assert url == "http://host.containers.internal:1234/v1"
 
     def test_ignores_non_local_urls_inside_container(self):
         with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)):

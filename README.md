@@ -3,10 +3,10 @@
 > **AI-powered, provider-agnostic Kubernetes upgrade readiness tool.**  
 > Connects to your cluster via `kubectl`, collects comprehensive state data, and uses any LLM to generate an exhaustive risk assessment report in Markdown.
 
-[![CI/CD](https://github.com/your-org/k8s-upgrade-assessment/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/your-org/k8s-upgrade-assessment/actions/workflows/ci-cd.yaml)
+[![CI/CD](https://github.com/srinivassrinu842/k8s-upgrade-assessment/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/srinivassrinu842/k8s-upgrade-assessment/actions/workflows/ci-cd.yaml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker)](https://ghcr.io/your-org/k8s-upgrade-assessment)
+[![Docker](https://img.shields.io/badge/docker-docker.io-blue?logo=docker)](https://hub.docker.com/r/srinivassrinu842/k8s-upgrade-assessment)
 [![Coverage: 81%](https://img.shields.io/badge/coverage-81%25-brightgreen.svg)]()
 
 ---
@@ -108,7 +108,7 @@ k8s-upgrade-assessment/
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-org/k8s-upgrade-assessment.git
+git clone https://github.com/srinivassrinu842/k8s-upgrade-assessment.git
 cd k8s-upgrade-assessment
 
 # 2. Install runtime dependencies
@@ -126,20 +126,35 @@ export OPENROUTER_API_KEY=sk-or-...    # OpenRouter
 python main.py --source 1.27 --target 1.29
 ```
 
-### Option B — Docker (recommended)
+### Option B — Docker / Podman (recommended)
 
-No Python installation needed. kubectl is bundled inside the image.
+No Python installation needed. `kubectl` is bundled inside the image.
 
+#### Using Docker
 ```bash
-# Pull from GitHub Container Registry
-docker pull ghcr.io/your-org/k8s-upgrade-assessment:latest
+# Pull from Docker Hub
+docker pull docker.io/srinivassrinu842/k8s-upgrade-assessment:latest
 
 # Run against your live cluster
 docker run --rm \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
   -v ~/.kube:/root/.kube:ro \
   -v $(pwd)/reports:/app/reports \
-  ghcr.io/your-org/k8s-upgrade-assessment:latest \
+  docker.io/srinivassrinu842/k8s-upgrade-assessment:latest \
+  --source 1.27 --target 1.29 --provider anthropic
+```
+
+#### Using Podman
+```bash
+# Pull from Docker Hub
+podman pull docker.io/srinivassrinu842/k8s-upgrade-assessment:latest
+
+# Run against your live cluster (:z tag is recommended on SELinux systems for rootless volumes)
+podman run --rm \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -v ~/.kube:/root/.kube:ro,z \
+  -v $(pwd)/reports:/app/reports:z \
+  docker.io/srinivassrinu842/k8s-upgrade-assessment:latest \
   --source 1.27 --target 1.29 --provider anthropic
 ```
 
@@ -304,15 +319,28 @@ docker run --rm \
   --api-key dummy
 ```
 
-### Run with Ollama (fully local, air-gapped)
+### Run with Ollama / LM Studio (fully local, air-gapped)
 
+#### Using Docker
 ```bash
-# Ollama must be running on the host. 
-# Note: The container automatically rewrites 'localhost' to 'host.docker.internal' on macOS/Windows.
-# On Linux host, add '--add-host=host.docker.internal:host-gateway' to reach the host services.
+# Ollama/LM Studio must be running on the host.
+# Note: Docker automatically resolves 'localhost' -> 'host.docker.internal' inside the container (on macOS/Windows).
+# On Linux hosts, add '--add-host=host.docker.internal:host-gateway' to reach host services.
 docker run --rm \
   -v ~/.kube:/root/.kube:ro \
   -v $(pwd)/reports:/app/reports \
+  k8s-upgrade-assessment \
+  --source 1.27 --target 1.29 --provider ollama --model llama3.1:70b
+```
+
+#### Using Podman
+```bash
+# Ollama/LM Studio must be running on the host.
+# Note: Podman automatically resolves 'localhost' -> 'host.containers.internal' inside the container.
+# On Linux hosts, add '--add-host=host.containers.internal:host-gateway' to reach host services.
+podman run --rm \
+  -v ~/.kube:/root/.kube:ro,z \
+  -v $(pwd)/reports:/app/reports:z \
   k8s-upgrade-assessment \
   --source 1.27 --target 1.29 --provider ollama --model llama3.1:70b
 ```
@@ -382,7 +410,7 @@ The report header includes full traceability metadata:
 
 ```bash
 # Clone
-git clone https://github.com/your-org/k8s-upgrade-assessment.git
+git clone https://github.com/srinivassrinu842/k8s-upgrade-assessment.git
 cd k8s-upgrade-assessment
 
 # Install all dev dependencies (lint + test tools)
@@ -482,7 +510,7 @@ push / PR
                                                              │
                                                     ┌────────▼────────┐
                                                     │    publish      │
-                                                    │ ghcr.io multi-  │
+                                                    │ docker.io multi-│
                                                     │ arch amd64+arm64│
                                                     └────────┬────────┘
                                                              │
@@ -501,7 +529,7 @@ push / PR
 | **test** | after lint | pytest on Python 3.11 + 3.12, coverage upload to Codecov |
 | **smoke-test** | after test | `--help` check + offline prompt build (no API key) |
 | **docker-build** | after smoke | Build image, Trivy CVE scan, upload SARIF to Security tab |
-| **publish** | `main` branch or `v*` tag | Multi-arch image pushed to GHCR (`amd64` + `arm64`) |
+| **publish** | `main` branch or `v*` tag | Multi-arch image pushed to Docker Hub (`amd64` + `arm64`) |
 | **release** | `v*` tag only | GitHub Release created with auto-generated changelog |
 
 ### Release a new version
@@ -516,7 +544,7 @@ git push origin v1.2.0
 
 | Secret | Used by | Purpose |
 |---|---|---|
-| `GITHUB_TOKEN` | publish, release | Push to GHCR, create release (auto-provided) |
+| `GITHUB_TOKEN` | publish, release | Push to Docker Hub, create release (auto-provided) |
 | `CODECOV_TOKEN` | test | Upload coverage reports (optional) |
 
 ---
