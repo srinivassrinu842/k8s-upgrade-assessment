@@ -66,7 +66,7 @@ USER appuser
 
 # Mount points:
 #   /app/reports     — output directory for generated reports
-#   /root/.kube      — kubeconfig (when running against a live cluster)
+#   /home/appuser/.kube — kubeconfig (when running against a live cluster)
 VOLUME ["/app/reports"]
 
 # Default: offline demo mode (safe default, no credentials needed)

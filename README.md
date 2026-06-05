@@ -138,7 +138,7 @@ docker pull docker.io/srinivassrinu842/k8s-upgrade-assessment:latest
 # Run against your live cluster
 docker run --rm \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/appuser/.kube:ro \
   -v $(pwd)/reports:/app/reports \
   docker.io/srinivassrinu842/k8s-upgrade-assessment:latest \
   --source 1.27 --target 1.29 --provider anthropic
@@ -152,7 +152,7 @@ podman pull docker.io/srinivassrinu842/k8s-upgrade-assessment:latest
 # Run against your live cluster (:z tag is recommended on SELinux systems for rootless volumes)
 podman run --rm \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -v ~/.kube:/root/.kube:ro,z \
+  -v ~/.kube:/home/appuser/.kube:ro,z \
   -v $(pwd)/reports:/app/reports:z \
   docker.io/srinivassrinu842/k8s-upgrade-assessment:latest \
   --source 1.27 --target 1.29 --provider anthropic
@@ -277,7 +277,7 @@ docker build --build-arg KUBECTL_VERSION=v1.30.0 -t k8s-upgrade-assessment .
 # Anthropic
 docker run --rm \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/appuser/.kube:ro \
   -v $(pwd)/reports:/app/reports \
   k8s-upgrade-assessment \
   --source 1.27 --target 1.29 --provider anthropic
@@ -285,7 +285,7 @@ docker run --rm \
 # OpenAI
 docker run --rm \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/appuser/.kube:ro \
   -v $(pwd)/reports:/app/reports \
   k8s-upgrade-assessment \
   --source 1.28 --target 1.30 --provider openai
@@ -293,7 +293,7 @@ docker run --rm \
 # OpenRouter
 docker run --rm \
   -e OPENROUTER_API_KEY=$OPENROUTER_API_KEY \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/appuser/.kube:ro \
   -v $(pwd)/reports:/app/reports \
   k8s-upgrade-assessment \
   --source 1.27 --target 1.29 --provider openrouter \
@@ -302,7 +302,7 @@ docker run --rm \
 # Multi-version jump (1.26 → 1.30)
 docker run --rm \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/appuser/.kube:ro \
   -v $(pwd)/reports:/app/reports \
   k8s-upgrade-assessment \
   --source 1.26 --target 1.30
@@ -327,7 +327,7 @@ docker run --rm \
 # Note: Docker automatically resolves 'localhost' -> 'host.docker.internal' inside the container (on macOS/Windows).
 # On Linux hosts, add '--add-host=host.docker.internal:host-gateway' to reach host services.
 docker run --rm \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/appuser/.kube:ro \
   -v $(pwd)/reports:/app/reports \
   k8s-upgrade-assessment \
   --source 1.27 --target 1.29 --provider ollama --model llama3.1:70b
@@ -339,7 +339,7 @@ docker run --rm \
 # Note: Podman automatically resolves 'localhost' -> 'host.containers.internal' inside the container.
 # On Linux hosts, add '--add-host=host.containers.internal:host-gateway' to reach host services.
 podman run --rm \
-  -v ~/.kube:/root/.kube:ro,z \
+  -v ~/.kube:/home/appuser/.kube:ro,z \
   -v $(pwd)/reports:/app/reports:z \
   k8s-upgrade-assessment \
   --source 1.27 --target 1.29 --provider ollama --model llama3.1:70b
@@ -349,7 +349,7 @@ podman run --rm \
 
 | Mount | Purpose |
 |---|---|
-| `-v ~/.kube:/root/.kube:ro` | Kubeconfig for live cluster access (read-only) |
+| `-v ~/.kube:/home/appuser/.kube:ro` | Kubeconfig for live cluster access (read-only) |
 | `-v $(pwd)/reports:/app/reports` | Output directory — reports appear here on the host |
 
 ---
@@ -576,7 +576,7 @@ source .env
 
 - The tool is **read-only** — it only runs `kubectl get/top/version` commands
 - The Docker image runs as a **non-root user** (`appuser`, UID 1001)
-- The kubeconfig is mounted **read-only** (`-v ~/.kube:/root/.kube:ro`)
+- The kubeconfig is mounted **read-only** (`-v ~/.kube:/home/appuser/.kube:ro`)
 - For **fully air-gapped / zero-data-exfiltration** runs, use `--provider ollama` or `--provider lmstudio` — no data leaves your network
 - The Docker image is scanned with **Trivy** on every CI run; results appear in the GitHub Security tab
 
