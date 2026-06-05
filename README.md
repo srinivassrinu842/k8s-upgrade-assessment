@@ -307,9 +307,10 @@ docker run --rm \
 ### Run with Ollama (fully local, air-gapped)
 
 ```bash
-# Ollama must be running on the host — use host networking so the container can reach it
+# Ollama must be running on the host. 
+# Note: The container automatically rewrites 'localhost' to 'host.docker.internal' on macOS/Windows.
+# On Linux host, add '--add-host=host.docker.internal:host-gateway' to reach the host services.
 docker run --rm \
-  --network host \
   -v ~/.kube:/root/.kube:ro \
   -v $(pwd)/reports:/app/reports \
   k8s-upgrade-assessment \
@@ -586,10 +587,10 @@ python main.py --source 1.27 --target 1.29 \
 **Ollama connection refused**
 
 ```bash
-# Make sure ollama is running
-ollama serve
-# Then retry — or use --network host in Docker
-docker run --rm --network host ...
+# Make sure Ollama is running on the host.
+# Inside Docker on macOS/Windows, the tool automatically uses host.docker.internal.
+# On Linux hosts, ensure you pass the host-gateway option:
+docker run --rm --add-host=host.docker.internal:host-gateway ...
 ```
 
 **Report is empty / LLM returned nothing**
