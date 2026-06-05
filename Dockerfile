@@ -31,10 +31,11 @@ LABEL org.opencontainers.image.title="k8s-upgrade-assessment" \
 
 # Install kubectl
 ARG KUBECTL_VERSION=v1.29.3
+ARG TARGETARCH=amd64
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
-    && curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    && curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" \
        -o /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl \
     && kubectl version --client \
