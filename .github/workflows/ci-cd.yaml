@@ -1,0 +1,334 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:          # allow manual runs
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true   # cancel stale PR runs on new push
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global defaults
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  PYTHON_VERSION: "3.12"
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/k8s-upgrade-assessment
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 1 — Lint
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: "Lint (flake8 · black · isort · mypy)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install lint tools
+        run: |
+          pip install --upgrade pip
+          pip install flake8 black isort mypy
+          # Install stubs / runtime deps so mypy can resolve types
+          pip install -r requirements.txt
+
+      - name: flake8 — style & logic
+        run: flake8 main.py --max-line-length=120 --statistics
+
+      - name: black — formatting
+        run: black --check --diff main.py
+
+      - name: isort — import order
+        run: isort --check-only --diff main.py
+
+      - name: mypy — type checking
+        run: mypy main.py --ignore-missing-imports --strict-optional
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 2 — Unit Tests
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    name: "Tests (Python ${{ matrix.python-version }})"
+    runs-on: ubuntu-latest
+    needs: lint
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v \
+            --tb=short \
+            --cov=main \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=75
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifact
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 3 — Offline smoke test (no API key, no cluster)
+  # ───────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: "Smoke test (offline mode)"
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify --help works
+        run: python main.py --help
+
+      - name: Verify prompt build in offline mode (no API call)
+        run: |
+          python - <<'EOF'
+          import main, json
+          data = main.gather_cluster_data(no_cluster=True)
+          assert data.get("_offline_mode") == "true", "Expected offline mode flag"
+          prompt = main.build_prompt("1.27", "1.29", data)
+          assert len(prompt) > 1000, f"Prompt too short: {len(prompt)} chars"
+          assert "1.27" in prompt and "1.29" in prompt
+          assert "Executive Summary" in prompt
+          print(f"✓ Prompt built: {len(prompt):,} characters")
+          EOF
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 4 — Docker build & scan
+  # ───────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: "Docker build & scan"
+    runs-on: ubuntu-latest
+    needs: smoke-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image — help command
+        run: docker run --rm ${{ env.IMAGE_NAME }}:test --help
+
+      - name: Verify image — offline prompt build
+        run: |
+          docker run --rm \
+            -e ANTHROPIC_API_KEY=dummy \
+            ${{ env.IMAGE_NAME }}:test \
+            --source 1.27 --target 1.29 --no-cluster 2>&1 | head -5 || true
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          format: table
+          exit-code: "0"          # warn only — change to "1" to enforce
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Export Trivy SARIF report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          format: sarif
+          output: trivy-results.sarif
+          ignore-unfixed: true
+          vuln-type: os,library
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 5 — Publish to GHCR (only on tag push or main branch)
+  # ───────────────────────────────────────────────────────────────────────────
+  publish:
+    name: "Publish image to GHCR"
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # semver tags  →  v1.2.3  →  1.2.3, 1.2, 1, latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # branch push  →  main-<sha>
+            type=ref,event=branch,suffix=-{{sha}}
+            # always tag latest on main
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 6 — GitHub Release (only on semver tags)
+  # ───────────────────────────────────────────────────────────────────────────
+  release:
+    name: "Create GitHub Release"
+    runs-on: ubuntu-latest
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # full history for changelog
+
+      - name: Generate changelog since last tag
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            LOG=$(git log "${PREV_TAG}..HEAD" --oneline --no-merges)
+          else
+            LOG=$(git log --oneline --no-merges | head -20)
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.CHANGELOG }}
+
+            ## Docker image
+
+            ```bash
+            docker pull ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ```
+
+            ## Quick start
+
+            ```bash
+            # Anthropic
+            docker run --rm \
+              -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+              -v ~/.kube:/root/.kube:ro \
+              -v $(pwd)/reports:/app/reports \
+              ${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+              --source 1.27 --target 1.29 --provider anthropic
+
+            # Offline demo (no cluster, no key)
+            docker run --rm \
+              -v $(pwd)/reports:/app/reports \
+              ${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+              --source 1.27 --target 1.29 --no-cluster
+            ```

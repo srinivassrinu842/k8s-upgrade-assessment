@@ -1,0 +1,38 @@
+# Development artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Environment and secrets
+.env
+*.env
+
+# Generated reports (not baked into image)
+reports/
+
+# Git
+.git/
+.gitignore
+
+# Docs
+README.md
+*.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# CI
+.github/
