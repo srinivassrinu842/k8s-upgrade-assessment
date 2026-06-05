@@ -324,24 +324,22 @@ docker run --rm \
 #### Using Docker
 ```bash
 # Ollama/LM Studio must be running on the host.
-# Note: Docker automatically resolves 'localhost' -> 'host.docker.internal' inside the container (on macOS/Windows).
-# On Linux hosts, add '--add-host=host.docker.internal:host-gateway' to reach host services.
-docker run --rm \
+# Note: Using '--net=host' allows containerized kubectl and model client to connect to local host services (127.0.0.1) natively.
+docker run --rm --net=host \
   -v ~/.kube:/home/appuser/.kube:ro \
   -v $(pwd)/reports:/app/reports \
-  k8s-upgrade-assessment \
+  srinivassrinu842/k8s-upgrade-assessment:latest \
   --source 1.27 --target 1.29 --provider ollama --model llama3.1:70b
 ```
 
 #### Using Podman
 ```bash
 # Ollama/LM Studio must be running on the host.
-# Note: Podman automatically resolves 'localhost' -> 'host.containers.internal' inside the container.
-# On Linux hosts, add '--add-host=host.containers.internal:host-gateway' to reach host services.
-podman run --rm \
+# Note: Using '--network host' allows containerized kubectl and model client to connect to local host services (127.0.0.1) natively.
+podman run --rm --network host \
   -v ~/.kube:/home/appuser/.kube:ro,z \
   -v $(pwd)/reports:/app/reports:z \
-  k8s-upgrade-assessment \
+  srinivassrinu842/k8s-upgrade-assessment:latest \
   --source 1.27 --target 1.29 --provider ollama --model llama3.1:70b
 ```
 
@@ -612,14 +610,18 @@ python main.py --source 1.27 --target 1.29 \
   --model my-model
 ```
 
-**Ollama connection refused**
+**Connection Refused (Ollama / LM Studio / Kubernetes API)**
 
-```bash
-# Make sure Ollama is running on the host.
-# Inside Docker on macOS/Windows, the tool automatically uses host.docker.internal.
-# On Linux hosts, ensure you pass the host-gateway option:
-docker run --rm --add-host=host.docker.internal:host-gateway ...
-```
+If the container cannot reach your host machine's Kubernetes API server (e.g. `localhost:8080` or `127.0.0.1:<port>`) or your local LLM services:
+
+1. **Use Host Networking (Recommended)**: Pass `--net=host` (for Docker) or `--network host` (for Podman) so the container shares the host network namespace and can natively resolve `localhost` and `127.0.0.1` to services running on your host:
+   ```bash
+   docker run --rm --net=host ...
+   ```
+2. **Alternative Host Gateways**: If not using host networking, on macOS/Windows the tool automatically maps `localhost` to `host.docker.internal` (Docker) or `host.containers.internal` (Podman). On Linux hosts, you can pass the host-gateway mapping manually:
+   ```bash
+   docker run --rm --add-host=host.docker.internal:host-gateway ...
+   ```
 
 **Report is empty / LLM returned nothing**
 
