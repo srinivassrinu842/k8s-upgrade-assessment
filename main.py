@@ -82,6 +82,15 @@ PROVIDERS: dict[str, ProviderConfig] = {
         "protocol": "openai",
         "api_key": "custom",
     },
+    "mock": {
+        "label": "Mock / Simulated Assessment (Offline)",
+        "base_url": None,
+        "default_model": "simulated-model",
+        "env_key": None,
+        "requires_key": False,
+        "protocol": "mock",
+        "api_key": "mock-key",
+    },
 }
 
 PROVIDER_NAMES: list[str] = list(PROVIDERS.keys())
@@ -424,6 +433,64 @@ def _stream_anthropic(prompt: str, model: str, api_key: str) -> str:
     return "".join(full)
 
 
+def _stream_mock(prompt: str, model: str) -> str:
+    """Stream a simulated Kubernetes upgrade report for testing and demo purposes."""
+    import time
+
+    report = """## 1. Cluster Inventory Summary
+- **Source Version:** v1.27.3
+- **Target Version:** v1.29.0
+- **Nodes:** 3 (1 control-plane, 2 workers)
+- **OS:** Ubuntu 22.04.3 LTS
+- **CRI:** containerd://1.7.2
+- **Topology:** Single-control-plane dev/test cluster
+
+## 2. Workload Inventory
+- **Namespaces:** `default`, `kube-system`, `monitoring`, `ingress-nginx`, `cert-manager`, `argocd`
+- **Deployments:** `coredns`, `prometheus-operator`, `grafana`, `ingress-nginx-controller`, `cert-manager`, `argocd-server`
+- **CRDs:** `certificates.cert-manager.io`, `clusterissuers.cert-manager.io`, `prometheusrules.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`, `applications.argoproj.io`, `appprojects.argoproj.io`
+
+## 3. Kubernetes Release Notes Analysis (v1.27 → v1.29)
+### v1.28 Major Changes
+- **CSI Migration:** Storage limits enforcement for CSI drivers.
+- **ValidatingAdmissionPolicy:** Graduated to Beta (enabled by default).
+
+### v1.29 Major Changes
+- **Legacy Cloud Providers:** Complete removal of in-tree cloud providers.
+- **Kubelet:** ReadOnlyPort is deprecated and defaults to 0.
+
+## 4. API Removal Analysis
+- **Resource:** `policy/v1beta1` (PodSecurityPolicy)
+  - **Status:** Removed in v1.25 (Still present in configurations but unsupported).
+  - **Workloads Impacted:** None (verified).
+- **Resource:** `flowcontrol.apiserver.k8s.io/v1beta2` (FlowSchema, PriorityLevelConfiguration)
+  - **Status:** Removed in v1.29 (Migrate to `v1`).
+  - **Workloads Impacted:** APIServer configuration.
+
+## 5. Upgrade Simulation
+- **Control Plane:** GOOD
+- **Worker Nodes:** GOOD
+- **APIs:** WARNING (check FlowControl versions)
+- **Networking:** GOOD
+- **Storage:** GOOD
+
+## 6. Readiness Score: 88/100 (Remediation Needed)
+- **Confidence Score:** 95% (Rich local data)
+
+## 7. Executive Summary
+- **Decision:** CONDITIONAL APPROVED
+- **Actions Required:** Ensure all FlowSchema objects are migrated to `flowcontrol.apiserver.k8s.io/v1` before proceeding.
+"""
+
+    print("  [MOCK] Simulating AI analysis stream...")
+    full_text = []
+    for line in report.split("\n"):
+        print(line)
+        full_text.append(line)
+        time.sleep(0.05)
+    return "\n".join(full_text)
+
+
 def call_llm(
     prompt: str,
     provider: str,
@@ -440,6 +507,11 @@ def call_llm(
     print(f"  Endpoint  : {base_url or 'native SDK'}")
     print(f"  Protocol  : {protocol}")
     print("\n" + "─" * 70 + "\n")
+
+    if protocol == "mock" or api_key.lower() == "dummy":
+        if api_key.lower() == "dummy" and protocol != "mock":
+            print("  ⚠️  WARNING: Dummy API key detected. Falling back to mock/simulation mode.")
+        return _stream_mock(prompt, model)
 
     if protocol == "anthropic":
         return _stream_anthropic(prompt, model, api_key)

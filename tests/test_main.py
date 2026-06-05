@@ -28,7 +28,7 @@ class TestProviderRegistry:
     """Validate the shape and correctness of PROVIDERS."""
 
     def test_all_providers_present(self):
-        expected = {"anthropic", "openai", "openrouter", "ollama", "lmstudio", "custom"}
+        expected = {"anthropic", "openai", "openrouter", "ollama", "lmstudio", "custom", "mock"}
         assert set(main.PROVIDERS.keys()) == expected
 
     def test_each_provider_has_required_keys(self):
@@ -38,7 +38,7 @@ class TestProviderRegistry:
             assert not missing, f"Provider '{name}' missing keys: {missing}"
 
     def test_protocol_values_valid(self):
-        valid = {"anthropic", "openai"}
+        valid = {"anthropic", "openai", "mock"}
         for name, cfg in main.PROVIDERS.items():
             assert cfg["protocol"] in valid, f"Provider '{name}' has invalid protocol"
 
@@ -471,6 +471,12 @@ class TestCallLlmRouting:
         with patch("main._stream_openai", return_value="report") as mock_oa:
             main.call_llm("prompt", "custom", "key", "my-model", "http://myserver/v1")
         assert mock_oa.called
+
+    def test_mock_routes_to_stream_mock(self):
+        with patch("main._stream_mock", return_value="report") as mock_stream:
+            result = main.call_llm("prompt", "mock", "mock-key", "simulated-model", "")
+        assert mock_stream.called
+        assert result == "report"
 
 
 # =============================================================================

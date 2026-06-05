@@ -70,6 +70,7 @@ The assessment covers API removals, CRD compatibility, controller/operator risks
 | **Ollama** (local) | `ollama` | ❌ | `llama3.1:70b` |
 | **LM Studio** (local) | `lmstudio` | ❌ | `local-model` |
 | **Custom / self-hosted** | `custom` | optional | `default` |
+| **Mock / Simulated** | `mock` | ❌ | `simulated-model` |
 
 Any OpenAI-compatible endpoint works with `--provider custom --base-url <url>` — including vLLM, LocalAI, Jan, GPT4All, text-generation-webui, and more.
 
@@ -213,16 +214,16 @@ python main.py --source 1.27 --target 1.29 \
 ### Offline / demo mode
 
 ```bash
-# No cluster access, no API key — uses rich built-in placeholder data
+# No cluster access, no API key — uses rich built-in placeholder data and simulated AI response
 # Useful for CI smoke tests or evaluating the tool before connecting a cluster
-python main.py --source 1.27 --target 1.29 --no-cluster
+python main.py --source 1.27 --target 1.29 --no-cluster --provider mock
 ```
 
 ### All CLI flags
 
 ```
 usage: k8s-upgrade [-h] --source SOURCE --target TARGET
-                   [--provider {anthropic,openai,openrouter,ollama,lmstudio,custom}]
+                   [--provider {anthropic,openai,openrouter,ollama,lmstudio,custom,mock}]
                    [--model MODEL]
                    [--base-url BASE_URL]
                    [--api-key API_KEY]
