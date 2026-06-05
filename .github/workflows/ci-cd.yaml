@@ -248,6 +248,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set lowercase registry username
+        run: |
+          echo "REGISTRY_USERNAME_LC=${{ secrets.REGISTRY_USERNAME }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -259,7 +263,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: docker.io/${{ secrets.REGISTRY_USERNAME }}/k8s-upgrade-assessment
+          images: docker.io/${{ env.REGISTRY_USERNAME_LC }}/k8s-upgrade-assessment
           tags: |
             # semver tag  →  v1.2.3  →  1.2.3, 1.2, 1
             type=semver,pattern={{version}}
@@ -303,6 +307,10 @@ jobs:
         with:
           fetch-depth: 0        # full history for changelog
 
+      - name: Set lowercase registry username
+        run: |
+          echo "REGISTRY_USERNAME_LC=${{ secrets.REGISTRY_USERNAME }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+
       - name: Generate changelog since last tag
         id: changelog
         run: |
@@ -328,7 +336,7 @@ jobs:
             ## Docker image
 
             ```bash
-            docker pull ${{ secrets.REGISTRY_USERNAME }}/k8s-upgrade-assessment:${{ github.ref_name }}
+            docker pull ${{ env.REGISTRY_USERNAME_LC }}/k8s-upgrade-assessment:${{ github.ref_name }}
             ```
 
             ## Quick start
@@ -339,12 +347,12 @@ jobs:
               -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
               -v ~/.kube:/root/.kube:ro \
               -v $(pwd)/reports:/app/reports \
-              ${{ secrets.REGISTRY_USERNAME }}/k8s-upgrade-assessment:${{ github.ref_name }} \
+              ${{ env.REGISTRY_USERNAME_LC }}/k8s-upgrade-assessment:${{ github.ref_name }} \
               --source 1.27 --target 1.29 --provider anthropic
 
             # Offline demo (no cluster, no key needed)
             docker run --rm \
               -v $(pwd)/reports:/app/reports \
-              ${{ secrets.REGISTRY_USERNAME }}/k8s-upgrade-assessment:${{ github.ref_name }} \
+              ${{ env.REGISTRY_USERNAME_LC }}/k8s-upgrade-assessment:${{ github.ref_name }} \
               --source 1.27 --target 1.29 --no-cluster
             ```
