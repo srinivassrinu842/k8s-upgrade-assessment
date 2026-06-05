@@ -38,7 +38,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" \
        -o /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl \
-    && kubectl version --client \
     && apt-get purge -y curl \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
