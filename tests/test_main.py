@@ -544,3 +544,27 @@ class TestMainIntegration:
             main.main()
         called_model = mock_llm.call_args[0][3]
         assert called_model == "gpt-4o"
+
+
+class TestContainerUrlAdjustment:
+    """Validate localhost to host.docker.internal URL rewriting inside containers."""
+
+    def test_no_rewrite_outside_container(self):
+        with patch("os.path.exists", return_value=False):
+            url = main.check_container_and_adjust_url("http://localhost:1234/v1")
+        assert url == "http://localhost:1234/v1"
+
+    def test_rewrites_localhost_inside_container(self):
+        with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)):
+            url = main.check_container_and_adjust_url("http://localhost:1234/v1")
+        assert url == "http://host.docker.internal:1234/v1"
+
+    def test_rewrites_127_0_0_1_inside_container(self):
+        with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)):
+            url = main.check_container_and_adjust_url("http://127.0.0.1:11434/v1")
+        assert url == "http://host.docker.internal:11434/v1"
+
+    def test_ignores_non_local_urls_inside_container(self):
+        with patch("os.path.exists", side_effect=lambda p: p in ("/.dockerenv",)):
+            url = main.check_container_and_adjust_url("https://api.openai.com/v1")
+        assert url == "https://api.openai.com/v1"

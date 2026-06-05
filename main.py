@@ -684,6 +684,21 @@ def banner(source: str, target: str, provider: str, no_cluster: bool) -> None:
     print()
 
 
+def check_container_and_adjust_url(url: str) -> str:
+    """If running inside a container, adjust localhost URLs to use host.docker.internal."""
+    if not url:
+        return url
+    # Check if running inside docker container
+    in_docker = os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv")
+    if in_docker:
+        for local_host in ("localhost", "127.0.0.1"):
+            if local_host in url:
+                new_url = url.replace(local_host, "host.docker.internal")
+                print(f"  [Docker Mode] Rewriting localhost URL: {url} -> {new_url}")
+                return new_url
+    return url
+
+
 def main() -> None:
     """Entry point — orchestrates the four assessment stages."""
     args = parse_args()
@@ -693,6 +708,7 @@ def main() -> None:
 
     model: str = args.model or cfg["default_model"]
     base_url: str = args.base_url or cfg.get("base_url") or ""
+    base_url = check_container_and_adjust_url(base_url)
 
     if provider == "custom" and not base_url:
         print("[ERROR] --provider custom requires --base-url <endpoint>")
